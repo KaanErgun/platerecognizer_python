@@ -3,10 +3,15 @@ import datetime
 import subprocess
 import time
 import os
+import json
 
-def save_plate_region(camera_code):
-    # Initialize the webcam
-    cap = cv2.VideoCapture(0)
+def load_cameras(file_path='cameras.json'):
+    with open(file_path, 'r') as file:
+        return json.load(file)['cameras']
+
+def save_plate_region(camera_code, rtsp_link):
+    # Initialize the RTSP stream
+    cap = cv2.VideoCapture(rtsp_link)
     cap.set(cv2.CAP_PROP_FPS, 5)  # Set FPS to 5
 
     log_dir = 'log'
@@ -19,7 +24,7 @@ def save_plate_region(camera_code):
         ret, frame = cap.read()
         
         if not ret:
-            print("Failed to capture image")
+            print(f"Failed to capture image from {camera_code}")
             break
         
         # Convert the frame to grayscale
@@ -54,6 +59,11 @@ def save_plate_region(camera_code):
     cap.release()
     cv2.destroyAllWindows()
 
-# Example usage
-camera_code = 'camera1'
-save_plate_region(camera_code)
+# Load cameras from the JSON file
+cameras = load_cameras()
+
+# Process each camera
+for camera in cameras:
+    camera_code = camera['camera_code']
+    rtsp_link = camera['rtsp_link']
+    save_plate_region(camera_code, rtsp_link)
