@@ -1,31 +1,23 @@
 import os
 import time
+from datetime import datetime, timedelta
 
-def clean_log_directory(log_dir, max_age_minutes=1):
-    # Get the current time
-    now = time.time()
-    
-    # Convert max age to seconds
-    max_age_seconds = max_age_minutes * 60
+# Directory to clean
+log_dir = "log"
 
-    print(f"Cleaning log directory: {log_dir}")
-    # Iterate over all files in the log directory
-    for filename in os.listdir(log_dir):
-        file_path = os.path.join(log_dir, filename)
-        
-        # Check if the file is older than max_age_seconds
-        file_age = now - os.stat(file_path).st_mtime
-        print(f"Checking file: {file_path}, age: {file_age} seconds")
-        if file_age > max_age_seconds:
-            print(f"Deleting file: {file_path}")
-            os.remove(file_path)
+# Time threshold in seconds (currently set to 60 seconds for testing)
+time_threshold_seconds = 60
 
-# Define the log directory
-log_dir = 'log'
+# Calculate the time threshold
+time_threshold = datetime.now() - timedelta(seconds=time_threshold_seconds)
 
-# Ensure the log directory exists
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+# Iterate through files in log directory
+for filename in os.listdir(log_dir):
+    file_path = os.path.join(log_dir, filename)
+    file_modified_time = datetime.fromtimestamp(os.path.getmtime(file_path))
 
-# Clean the log directory
-clean_log_directory(log_dir)
+    if file_modified_time < time_threshold:
+        os.remove(file_path)
+        print(f"Removed {file_path}")
+
+print("Cleaner finished.")

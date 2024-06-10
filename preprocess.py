@@ -1,69 +1,71 @@
 import cv2
-import datetime
-import subprocess
+import threading
 import time
 import os
+from datetime import datetime
 import json
 
-def load_cameras(file_path='cameras.json'):
-    with open(file_path, 'r') as file:
-        return json.load(file)['cameras']
+# Function to capture and save image from camera
+def capture_and_save(camera_code, rtsp_link):
+    try:
+        cap = cv2.VideoCapture(rtsp_link)
+        if not cap.isOpened():
+            print(f"Camera {camera_code} could not be opened.")
+            return
 
-def save_plate_region(camera_code, rtsp_link):
-    # Initialize the RTSP stream
-    cap = cv2.VideoCapture(rtsp_link)
-    cap.set(cv2.CAP_PROP_FPS, 5)  # Set FPS to 5
-
-    log_dir = 'log'
-
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-
-    while True:
-        # Capture frame-by-frame
-        ret, frame = cap.read()
-        
-        if not ret:
-            print(f"Failed to capture image from {camera_code}")
-            break
-        
-        # Convert the frame to grayscale
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        
-        # Load the pre-trained Haar Cascade classifier for license plate detection
+        # Load pre-trained Haar Cascade classifier for license plate detection
         plate_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml')
-        
-        # Detect license plates in the frame
-        plates = plate_cascade.detectMultiScale(gray, 1.1, 10)
-        
-        # If a plate is detected, save the region and trigger recognize.py
-        for (x, y, w, h) in plates:
-            plate_region = frame[y:y+h, x:x+w]
-            current_time = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
-            file_name = os.path.join(log_dir, f"{camera_code}_{current_time}.jpg")
-            cv2.imwrite(file_name, plate_region)
-            print(f"Saved plate region as {file_name}")
-            
-            # Trigger recognize.py with the saved image file name
-            subprocess.run(["python3", "recognize.py", file_name])
-            time.sleep(20)  # Add a delay of 20 seconds
-        
-        # Display the resulting frame
-        cv2.imshow('Frame', frame)
-        
-        # Break the loop if 'q' is pressed
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    
-    # Release the capture and close windows
-    cap.release()
-    cv2.destroyAllWindows()
 
-# Load cameras from the JSON file
-cameras = load_cameras()
+        while True:
+            ret, frame = cap.read()
+            if ret:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                plates = plate_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-# Process each camera
-for camera in cameras:
-    camera_code = camera['camera_code']
-    rtsp_link = camera['rtsp_link']
-    save_plate_region(camera_code, rtsp_link)
+                if len(plates) > 0:
+                    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+                    filename = f"log/{camera_code}_{timestamp}.jpg"
+                    cv2.imwrite(filename, frame)
+                    # Trigger recognize.py with the saved image filename
+                    os.system(f"python recognize.py {filename} {camera_code}")
+                    time.sleep(2)  # Adjust sleep time to control the request frequency
+                else:
+                    print(f"No plate detected from camera {camera_code}")
+            else:
+                print(f"Failed to capture frame from camera {camera_code}")
+            time.sleep(10)  # Capture every 10 seconds, adjust as needed
+    except Exception as e:
+        print(f"Error with camera {camera_code}: {e}")
+
+def cleaner_trigger():
+    while True:
+        os.system("python cleaner.py")
+        time.sleep(60)  # Run cleaner.py every 60 seconds for testing
+
+def main():
+    # Read cameras.json
+    with open('cameras.json') as f:
+        cameras = json.load(f)
+
+    # Create a thread for each camera
+    threads = []
+    for camera in cameras:
+        camera_code = camera['code']
+        rtsp_link = camera['rtsp']
+        thread = threading.Thread(target=capture_and_save, args=(camera_code, rtsp_link))
+        threads.append(thread)
+        thread.start()
+
+    # Start cleaner trigger thread
+    cleaner_thread = threading.Thread(target=cleaner_trigger)
+    cleaner_thread.start()
+
+    # Join threads to main thread
+    for thread in threads:
+        thread.join()
+
+    # Join cleaner thread
+    cleaner_thread.join()
+
+if __name__ == "__main__":
+    main()

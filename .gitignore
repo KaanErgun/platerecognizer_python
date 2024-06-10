@@ -1,4 +1,10 @@
-/log
+/log/
 /myenv
-token.txt
-cameras.json
+/token.txt
+/cameras.json
+__pycache__/
+/.vscode/
+/.idea/
+*.pyc
+.DS_Store
+pass_log.json
