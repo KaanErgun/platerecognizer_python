@@ -4,8 +4,13 @@ import json
 import subprocess
 import os
 
-# Platerecognizer API key
-API_KEY = '0d0199716980f3f8aef99eeb08e2b345c493e72f'
+# Function to read API token from token.txt
+def read_api_token(file_path='token.txt'):
+    with open(file_path, 'r') as file:
+        return file.readline().strip()
+
+# Read the API token
+API_KEY = read_api_token()
 
 def recognize_plate(image_path):
     regions = ["au"]  # Change to your country or desired regions
