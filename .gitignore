@@ -9,3 +9,4 @@ __pycache__/
 .DS_Store
 pass_log.json
 ROI.json
+plates.json
