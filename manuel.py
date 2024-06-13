@@ -2,17 +2,19 @@ import sys
 import requests
 from pprint import pprint
 
-# Platerecognizer API key
-API_KEY = '0d0199716980f3f8aef99eeb08e2b345c493e72f'
+def get_api_key():
+    with open('token.txt', 'r') as file:
+        return file.read().strip()
 
 def recognize_plate(image_path):
+    api_key = get_api_key()
     regions = ["au"]  # Change to your country or desired regions
     with open(image_path, 'rb') as image_file:
         response = requests.post(
             'https://api.platerecognizer.com/v1/plate-reader/',
             data=dict(regions=regions),  # Optional
             files=dict(upload=image_file),
-            headers={'Authorization': f'Token {API_KEY}'}
+            headers={'Authorization': f'Token {api_key}'}
         )
 
         if response.status_code == 200:
