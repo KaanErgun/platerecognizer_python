@@ -10,3 +10,4 @@ __pycache__/
 pass_log.json
 ROI.json
 plates.json
+*.plates
