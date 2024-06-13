@@ -58,7 +58,7 @@ def capture_and_save(camera_code, rtsp_link, roi, use_roi):
                     print(f"No plate detected from camera {camera_code}")
             else:
                 print(f"Failed to capture frame from camera {camera_code}")
-            time.sleep(10)  # Capture every 10 seconds, adjust as needed
+            time.sleep(1)  # Capture every 10 seconds, adjust as needed
 
         cap.release()
     except Exception as e:
