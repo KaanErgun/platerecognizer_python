@@ -3,8 +3,26 @@ import json
 from datetime import datetime
 import threading
 import os
+from difflib import SequenceMatcher
 
 log_lock = threading.Lock()
+
+def load_registered_plates():
+    plates_file = 'plates.json'
+    if os.path.exists(plates_file):
+        with open(plates_file, 'r') as file:
+            return json.load(file)
+    return []
+
+def similar(a, b):
+    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
+def is_authorized_plate(plate):
+    registered_plates = load_registered_plates()
+    for registered_plate in registered_plates:
+        if similar(plate, registered_plate['plate']) >= 0.8:
+            return True
+    return False
 
 def process_result(json_filename, camera_code):
     with open(json_filename, 'r') as file:
@@ -15,6 +33,11 @@ def process_result(json_filename, camera_code):
             plate = result['plate']
             print(f"Plate: {plate}, Score: {result['score']}, Camera: {camera_code}")
             log_passing_vehicle(plate, camera_code)
+
+            if is_authorized_plate(plate):
+                print("Authorized")
+            else:
+                print("Unauthorized")
 
 def log_passing_vehicle(plate, camera_code):
     log_data = {
@@ -38,7 +61,7 @@ def log_passing_vehicle(plate, camera_code):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python post-process.py <json_filename> <camera_code>")
+        print("Usage: python3 post-process.py <json_filename> <camera_code>")
         sys.exit(1)
     
     json_filename = sys.argv[1]
