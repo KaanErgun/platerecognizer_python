@@ -8,32 +8,40 @@ import json
 stop_event = threading.Event()
 
 # Function to capture, crop, resize, and save image from camera
-def capture_and_save(camera_code, rtsp_link, roi):
+def capture_and_save(camera_code, rtsp_link, roi, use_roi):
     try:
         cap = cv2.VideoCapture(rtsp_link)
         if not cap.isOpened():
             print(f"Camera {camera_code} could not be opened.")
             return
 
-        roi_x, roi_y, roi_w, roi_h = roi
-
         while not stop_event.is_set():
             ret, frame = cap.read()
             if ret:
-                # Crop the frame to the ROI
-                roi_frame = frame[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w]
-
                 # Convert to 1:1 aspect ratio by cropping sides if needed
-                h, w, _ = roi_frame.shape
+                h, w, _ = frame.shape
                 if w > h:
                     diff = (w - h) // 2
-                    roi_frame = roi_frame[:, diff:w-diff]
+                    square_frame = frame[:, diff:diff+h]
                 elif h > w:
                     diff = (h - w) // 2
-                    roi_frame = roi_frame[diff:h-diff, :]
+                    square_frame = frame[diff:diff+w, :]
+                else:
+                    square_frame = frame
 
                 # Resize to 500x500
-                roi_frame = cv2.resize(roi_frame, (500, 500))
+                resized_frame = cv2.resize(square_frame, (500, 500))
+
+                if use_roi:
+                    roi_x, roi_y, roi_w, roi_h = roi
+                    # Apply ROI
+                    roi_frame = resized_frame[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w]
+                else:
+                    roi_frame = resized_frame
+
+                # Debug: Save the cropped and resized image for verification
+                debug_filename = f"log/{camera_code}_debug.jpg"
+                cv2.imwrite(debug_filename, roi_frame)
 
                 gray = cv2.cvtColor(roi_frame, cv2.COLOR_BGR2GRAY)
                 plate_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml')
@@ -70,6 +78,9 @@ def main():
     with open('ROI.json') as f:
         rois = json.load(f)
 
+    # Set use_roi switch
+    use_roi = True  # Change to False to disable ROI processing
+
     # Create a thread for each camera
     threads = []
     for camera in cameras:
@@ -77,7 +88,7 @@ def main():
         rtsp_link = camera['rtsp']
         if camera_code in rois:
             roi = (rois[camera_code]['x'], rois[camera_code]['y'], rois[camera_code]['w'], rois[camera_code]['h'])
-            thread = threading.Thread(target=capture_and_save, args=(camera_code, rtsp_link, roi))
+            thread = threading.Thread(target=capture_and_save, args=(camera_code, rtsp_link, roi, use_roi))
             threads.append(thread)
             thread.start()
         else:
